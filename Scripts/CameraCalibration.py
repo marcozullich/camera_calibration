@@ -10,7 +10,6 @@ import cv2
 import matplotlib.pyplot as plt
 import os
 
-#0. define import function for groups of imgs in same folder
 def importImagesFolder(path, retList = None):
     '''
     import the whole content of a folder supposedly containing images
@@ -20,10 +19,16 @@ def importImagesFolder(path, retList = None):
     ---
     returns retList itself (in case None has been specified in its place)
     '''
+    #strip whitespace and slash from string
+    path = path.strip(' ').strip('/')
+    
+    #get list of files in given path
     myImagesDirList = os.listdir(path)
+    #if no list was passed, create a new one
     if retList == None:
         retList = []
-        
+    
+    #append each image in folder to list
     for img in myImagesDirList:
         retList.append(cv2.imread(path + '/' + img))
         
@@ -47,10 +52,17 @@ def detectAndSaveCheckerboardInList(imgList, checkerboardSize, savePath = None):
     * the list of object points
     ... expand?
     '''
+    
+    if savePath != None:
+        savePath = savePath.strip(' ').strip('/')
+        if not os.path.isdir(savePath):
+            os.mkdir(savePath)
+    
     criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
+    
     # prepare object points, like (0,0,0), (1,0,0), (2,0,0) ....,(6,5,0)
-    objp = np.zeros((height*length,3), np.float32)
-    objp[:,:2] = np.mgrid[0:height,0:length].T.reshape(-1,2)
+    objp = np.zeros((checkerboardSize[0]*checkerboardSize[1],3), np.float32)
+    objp[:,:2] = np.mgrid[0:checkerboardSize[0],0:checkerboardSize[1]].T.reshape(-1,2)
     
     objpoints = [] # 3d point in real world space
     imgpoints = [] # 2d points in image plane.
@@ -71,16 +83,18 @@ def detectAndSaveCheckerboardInList(imgList, checkerboardSize, savePath = None):
                                         criteria)
             imgpoints.append(corners2)
             
-            img = cv2.drawChessboardCorners(imgList[i], checkerboardSize, corners2 ,ret)
+            img = np.copy(imgList[i])
             
-            checkerBoardImages.append(img)
+            cv2.drawChessboardCorners(img, checkerboardSize, corners2 ,ret)
             
             if savePath != None:
                 cv2.imwrite(savePath + '/checker_' + str(i) + '.jpg', img)
-                
-    return img
+            
+            checkerBoardImages.append(img)
+            
+    return checkerBoardImages
     
-def getCheckerboardSize(img, maxSizes):
+def getCheckerboardSize(img, maxSizes = (20,20)):
     '''
     tries detection of checkerboard with a variable size within BGR image
     ---
@@ -101,8 +115,8 @@ def getCheckerboardSize(img, maxSizes):
     
     checkerboardDetectedIn = []
     
-    for i in range(3, size_a):
-        for j in range(3, size_b):
+    for i in range(3, size_a+1):
+        for j in range(i, size_b+1):
             ret, corners = cv2.findChessboardCorners(img_gray, (i,j), None)
             if ret:
                 checkerboardDetectedIn.append((i,j))
