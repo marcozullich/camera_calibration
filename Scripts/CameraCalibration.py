@@ -2,7 +2,7 @@
 """
 Created on Wed Dec 26 15:14:52 2018
 
-@author: mzullich
+@authors: Marco Zullich and Domagoj Korais
 """
 
 import numpy as np
@@ -13,11 +13,13 @@ import os
 def importImagesFolder(path, retList = None):
     '''
     import the whole content of a folder supposedly containing images
+    into a new list, or appends it in case an already existing list is passed
+    to as an input.
     ---
     * path -> path of the folder
     * retList -> a list to which images are appended to
     ---
-    returns retList itself (in case None has been specified in its place)
+    returns retList
     '''
     #strip whitespace and slash from string
     path = path.strip(' ').strip('/')
@@ -50,7 +52,7 @@ def detectAndSaveCheckerboardInList(imgList, checkerboardSize, savePath = None):
     returns
     * a list of BGR images with the checkerboards drawn (where detected)
     * the list of object points
-    ... expand?
+    * the list of image points
     '''
     
     if savePath != None:
@@ -92,7 +94,7 @@ def detectAndSaveCheckerboardInList(imgList, checkerboardSize, savePath = None):
             
             checkerBoardImages.append(img)
             
-    return checkerBoardImages
+    return checkerBoardImages, objpoints, imgpoints
     
 def getCheckerboardSize(img, maxSizes = (20,20)):
     '''
@@ -123,4 +125,74 @@ def getCheckerboardSize(img, maxSizes = (20,20)):
     
     return checkerboardDetectedIn
 
+def calibrateCamera(objpoints, imgpoints, imgSize, considerRadialDistortion):
+    '''
+    wrapper over cv2.calibrateCamera to render it more comprehensible wrt the
+    subjects which were studied during lectures; in particular, it simplifies
+    all the complicated structure of flags which are used in cv2's method
+    in order to limit it to a bool over radial distortion.
+    ---
+    * objpoints -> list of 3-D object points corresponding to the checkerboard
+      intersections (one array for each image)
+    * imgpoints -> list of corresponding 2-D within the image (one array for
+      each image)
+    * imgSize -> tuple containing the (common) size of all images
+    * considerRadialDistortion -> boolean indicating whether radial distortion
+      has to be considered during the calibration
+          True means that a simplified model considering only the parameters
+          k1, k2 will be employed
+    ---
+    returns the same objects returned by cv2's method:
+    * ret -> error (average of average L-2 norm on reprojected vs image points)
+    * mtx -> K (intrinsics matrix)
+    * dist -> distortion coefficients
+    * rvecs -> rotation matrices (extrinsics) - one for each calibration image
+    * tvecs -> translation vector (extrinsics) - one for each calibration image
+    '''
+    distCoeffs = None
+    flags = cv2.CALIB_ZERO_TANGENT_DIST
+    if not considerRadialDistortion:
+        distCoeffs = np.array([.0,.0,.0,.0])
+        flags += cv2.CALIB_USE_INTRINSIC_GUESS + cv2.CALIB_FIX_K1 + \
+                 cv2.CALIB_FIX_K2 + cv2.CALIB_FIX_K3
+    
+    ret, mtx, dist, rvecs, tvecs = \
+        cv2.calibrateCamera(objpoints, imgpoints, imgSize, None,
+                            distCoeffs = distCoeffs, flags = flags)
+        
+    return ret, mtx, dist, rvecs, tvecs
 
+def computeReprojectionError(imgpoints, objpoints, rvecs, tvecs, K, dist):
+    '''
+    computes reprojection error given a 2-D image points, the corresponding 3-D
+    object point related to the same checker-board intersections and the values
+    of the intrinsics, extrinsics and the distortion coefficients
+    ---
+    * imgpoint -> list of array of points corresponding to the checkerboard inter-
+      sections (2-dimensional) for one single calibration image
+    * objpoint -> list of array of object points (3-dimensional)
+    * rvec -> rotation matrices for the projections
+    * tvec -> translation vectors for the projections
+    * K -> intrinsics matrix of camera
+    * dist -> vector containing distortion coefficients (k1, k2, p1, p2, k3)
+    ---
+    returns
+    * errs -> list containig the total geometric residual for each calibration
+      image
+    * projPoints -> list containing the set of reprojected points (an array for
+      each of the calibration images)
+    '''
+    errs = [None]*len(imgpoints)
+    projPoints = [None]*len(imgpoints)
+    
+    for i in range(len(imgpoints)):
+        
+        reprojected, _ = cv2.projectPoints(objpoints[i], rvecs[i], tvecs[i],
+                                           K, dist)
+        errs[i] = np.sum((imgpoints[i] - reprojected)**2)
+        projPoints[i] = reprojected
+    return errs, projPoints
+
+  
+
+    
