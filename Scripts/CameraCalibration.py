@@ -53,6 +53,8 @@ def detectAndSaveCheckerboardInList(imgList, checkerboardSize, savePath = None):
     * a list of BGR images with the checkerboards drawn (where detected)
     * the list of object points
     * the list of image points
+    * a list of booleans indicating whether the desired pattern (checkerboard
+      of specified size) was found within the corresponding image in imgList
     '''
     
     if savePath != None:
@@ -72,10 +74,12 @@ def detectAndSaveCheckerboardInList(imgList, checkerboardSize, savePath = None):
     imgList_gray = [cv2.cvtColor(x, cv2.COLOR_BGR2GRAY) for x in imgList]
     
     checkerBoardImages = []
+    checkerboardFound = []
     
     for i in range(len(imgList)):
         ret, corners = cv2.findChessboardCorners(imgList_gray[i],
                                                  checkerboardSize, None)
+        checkerboardFound.append(ret)
         
         if ret:
             objpoints.append(objp)
@@ -87,14 +91,14 @@ def detectAndSaveCheckerboardInList(imgList, checkerboardSize, savePath = None):
             
             img = np.copy(imgList[i])
             
-            cv2.drawChessboardCorners(img, checkerboardSize, corners2 ,ret)
+            cv2.drawChessboardCorners(img, checkerboardSize, corners2, ret)
             
             if savePath != None:
                 cv2.imwrite(savePath + '/checker_' + str(i) + '.jpg', img)
             
             checkerBoardImages.append(img)
             
-    return checkerBoardImages, objpoints, imgpoints
+    return checkerBoardImages, objpoints, imgpoints, checkerboardFound
     
 def getCheckerboardSize(img, maxSizes = (20,20)):
     '''
@@ -193,6 +197,28 @@ def computeReprojectionError(imgpoints, objpoints, rvecs, tvecs, K, dist):
         projPoints[i] = reprojected
     return errs, projPoints
 
+def liveCalibration(webcamIndex = 0, repErrThreshold = 1.0, waitTime = 30):
+    '''
+    This method lets us calibrate one of the computer's webcams live by taking
+    pictures continuously until:
+        1. enough pictures are obtained and a low enough reprojection threshold
+           has been reached
+        2. the user specifies to exit willing to keep quantities lower than
+           what specified in point 1
+        3. the user specifies to exit without calibrating
+        4. 30 seconds have passed
+    '''
+    
+    while(True):
+        
+
+def _shoot(webcamIndex = 0):
+    cap = cv2.VideoCapture(webcamIndex)
+    ret, frame = cap.read()
+    return frame
+
+
+    
   
 
     
