@@ -9,6 +9,8 @@ import numpy as np
 import cv2
 import matplotlib.pyplot as plt
 import os
+import threading
+import time
 
 def importImagesFolder(path, retList = None):
     '''
@@ -197,7 +199,7 @@ def computeReprojectionError(imgpoints, objpoints, rvecs, tvecs, K, dist):
         projPoints[i] = reprojected
     return errs, projPoints
 
-def liveCalibration(webcamIndex = 0, repErrThreshold = 1.0, waitTime = 30):
+def liveCalibrationPipe(webcamIndex = 0, repErrThreshold = 1.0, waitTime = 30):
     '''
     This method lets us calibrate one of the computer's webcams live by taking
     pictures continuously until:
@@ -208,14 +210,158 @@ def liveCalibration(webcamIndex = 0, repErrThreshold = 1.0, waitTime = 30):
         3. the user specifies to exit without calibrating
         4. 30 seconds have passed
     '''
-    
-    while(True):
+    i=0
+    imgs = []
+    while(i<waitTime):
+        i+=1
+        img = None
+        t = Timer(1, _shoot, args=(img, ))
+        t.start()
+        imgs.append(img)
+        
         
 
-def _shoot(webcamIndex = 0):
-    cap = cv2.VideoCapture(webcamIndex)
+def _shootFromActiveWebcam(cap):
+    '''
+    This function shoots a picture from a given active webcam caption and
+    returns the frame
+    ---
+    *cap -> the webcam capture
+    ---
+    returns picture (ndarray) just shot
+    '''
     ret, frame = cap.read()
     return frame
+    
+def _shootContinuouslyFromActiveWebcamAndAddToList(cap, picsList, tmInt):
+    '''
+    This method lets us continuously shoot pictures from a given active webcam
+    caption with a given time interval and appends them to a list which is
+    passed on to this function
+    ---
+    * cap -> the webcam capture
+    * picsList -> the images list
+    * tmInt -> the time interval between one shot and the following
+    '''
+    while(1):
+        picsList.append(_shootFromActiveWebcam(cap))
+        time.sleep(tmInt)
+
+def _detectCheckerAndCalibrate(imgList, imgpoints, objpoints, checkerSize,
+                               startIndex = 0):
+    '''
+    This method lets us detect checkerboard in a given list of image
+    (with the possibility to start at a given checkpoint within the list)
+    and calibrate camera according to the detected correspondences plus
+    previous correspondences
+    ---
+    * imgList -> list of calibration images
+    * imgpoints -> list of 2d points corresponding to the checkerboard inter-
+      sections
+    * objpoints -> list of 3d points corresponding to the checkerboard inter-
+      sections IRL
+    * checkerSize -> 2d tuple representing the size of the checkerboard to be
+      searched into the pictures
+    * startIndex -> index relative to the imgList at which the algorithm has to
+      start detection and append its results to img and objpoints
+    ---
+    returns:
+    * total reprojection error
+    * calibration matrix
+    * distortion coefficients
+    * rotation matrices
+    * translation vectors
+    * updated list of 2d points corresponding to checkerboard corners
+    * updated list of 3d points corresponding to checkerboard corners
+    '''
+    #detect pattern in desired images
+    _, imgpoints2, objpoints2, foundPattern =\
+                detectAndSaveCheckerboardInList(imgList[startIndex:],
+                                                checkerSize)
+    #append points in 2d and 3d to corresponding lists
+    imgpoints = imgpoints + imgpoints2
+    objpoints = objpoints + objpoints2
+    
+    #start calibration
+    ret, mtx, dist, rvecs, tvecs = calibrateCamera(objpoints, imgpoints,
+                                                   imgList[0].shape[0:2],
+                                                   True)
+    
+    return ret, mtx, dist, rvecs, tvecs, imgpoints, objpoints
+
+def _calibrateContinuously(imgList, checkerSize, tmInt, repErrThresh):
+    '''
+    This methods lets us continuously calibrate our camera with a specified 
+    time interval based upon a list of images which is supposed that to be
+    fed as this algorithm keeps running. When a given reprojection error
+    threshold is improved, the algorithm stops returning calibration infos
+    and the error statistics wrt time.
+    Note: calibration is based upon the wrapper provided by this library,
+    so see docs for calibrateCamera for further info on the procedure
+    ---
+    * imgList -> list of images used for calibration
+    * checkerSize -> the size of the checkerboard to be searched into the pics
+    * timInt -> time interval from one calibration to the next one
+    * repErrThresh -> threshold for total reprojection error under which the
+      calibration stops and the methods return
+    ---
+    returns:
+    * calibration matrix
+    * distortion coefficients
+    * rotation matrices
+    * translation vectors
+    * list containing statistics of total reprojection error and time
+      elapsed
+    '''    
+
+    K = None
+    dist = None
+    rvecs = None
+    tvecs = None
+    errStats = []
+    previousMark = 0
+    imgpoints = []
+    objpoints = []
+    
+    while(1):
+        imgListSize = len(imgList)
+        #need at least 8 pictures to start calibrating
+        if(imgListSize>8):
+            ret, K, dist, rvecs, tvecs, imgpoints, objpoints =\
+                        _detectCheckerAndCalibrate(imgList, imgpoints,
+                                                   objpoints, checkerSize,
+                                                   previousMark)
+            previousMark = imgListSize
+            errStats.append(np.array([ret, 0])) #TODO add time
+            if(ret>repErrThresh):
+                break
+            
+        time.sleep(tmInt)
+        
+def calibrateLive(checkerSize, webcamIndex = 0, tmInt = .25, maxTime = 30,
+                  repErrThresh = 1.0, verbose = False):
+    #this will store pics from shooting thread
+    picsList = []
+    #those will store 2d and 3d points of checkerboard intersection
+    objpoints = []
+    imgpoints = []
+    cap = cv2.VideoCapture(0)
+    
+    thread_shoot = threading.Thread(name ='Shoot',
+                    target = _shootContinuouslyFromActiveWebcamAndAddToList,
+                    args = (cap, picsList, tmInt))
+    
+    thread_calibrate = threading.Thread(name = 'Calibrate',
+                                        target = _calibrateContinuously,
+                                        args = (picsList, checkerSize, tmInt*4,
+                                                repErrThresh))
+    
+    thread_shoot.start()
+    thread_calibrate.start()
+    
+    thread_shoot.join()
+    thread_calibrate.join()
+
 
 
     
