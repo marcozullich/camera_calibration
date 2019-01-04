@@ -233,7 +233,8 @@ def _shootFromActiveWebcam(cap):
     ret, frame = cap.read()
     return frame
     
-def _shootContinuouslyFromActiveWebcamAndAddToList(cap, picsList, tmInt):
+def _shootContinuouslyFromActiveWebcamAndAddToList(cap, picsList, tmInt, cont,
+                                                   statusVec = ["continue"]):
     '''
     This method lets us continuously shoot pictures from a given active webcam
     caption with a given time interval and appends them to a list which is
@@ -242,8 +243,9 @@ def _shootContinuouslyFromActiveWebcamAndAddToList(cap, picsList, tmInt):
     * cap -> the webcam capture
     * picsList -> the images list
     * tmInt -> the time interval between one shot and the following
+    * statusVec -> vector for status (used for threading)
     '''
-    while(1):
+    while(statusVec[0] != "stop"):
         picsList.append(_shootFromActiveWebcam(cap))
         time.sleep(tmInt)
 
@@ -289,7 +291,8 @@ def _detectCheckerAndCalibrate(imgList, imgpoints, objpoints, checkerSize,
     
     return ret, mtx, dist, rvecs, tvecs, imgpoints, objpoints
 
-def _calibrateContinuously(imgList, checkerSize, tmInt, repErrThresh):
+def _calibrateContinuously(imgList, checkerSize, tmInt, repErrThresh,
+                           statusVec = ["continue"]):
     '''
     This methods lets us continuously calibrate our camera with a specified 
     time interval based upon a list of images which is supposed that to be
@@ -304,6 +307,7 @@ def _calibrateContinuously(imgList, checkerSize, tmInt, repErrThresh):
     * timInt -> time interval from one calibration to the next one
     * repErrThresh -> threshold for total reprojection error under which the
       calibration stops and the methods return
+    * statusVec -> vector for status (used for threading)
     ---
     returns:
     * calibration matrix
@@ -323,7 +327,7 @@ def _calibrateContinuously(imgList, checkerSize, tmInt, repErrThresh):
     imgpoints = []
     objpoints = []
     
-    while(1):
+    while(statusVec[0] != "stop"):
         imgListSize = len(imgList)
         #need at least 8 pictures to start calibrating
         if(imgListSize>8):
@@ -337,7 +341,9 @@ def _calibrateContinuously(imgList, checkerSize, tmInt, repErrThresh):
                 break
             
         time.sleep(tmInt)
-        
+    
+
+##TODO -> multiprocessing
 def calibrateLive(checkerSize, webcamIndex = 0, tmInt = .25, maxTime = 30,
                   repErrThresh = 1.0, verbose = False):
     #this will store pics from shooting thread
@@ -346,22 +352,22 @@ def calibrateLive(checkerSize, webcamIndex = 0, tmInt = .25, maxTime = 30,
     objpoints = []
     imgpoints = []
     cap = cv2.VideoCapture(0)
+    #status vector
+    statusVec = ["continue"]
     
     thread_shoot = threading.Thread(name ='Shoot',
                     target = _shootContinuouslyFromActiveWebcamAndAddToList,
-                    args = (cap, picsList, tmInt))
+                    args = (cap, picsList, tmInt, statusVec))
     
     thread_calibrate = threading.Thread(name = 'Calibrate',
                                         target = _calibrateContinuously,
                                         args = (picsList, checkerSize, tmInt*4,
-                                                repErrThresh))
+                                                repErrThresh, statusVec))
     
     thread_shoot.start()
     thread_calibrate.start()
     
-    thread_shoot.join()
-    thread_calibrate.join()
-
+    time.sleep(maxTime)
 
 
     
