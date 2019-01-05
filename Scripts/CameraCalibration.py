@@ -200,28 +200,6 @@ def computeReprojectionError(imgpoints, objpoints, rvecs, tvecs, K, dist):
         projPoints[i] = reprojected
     return errs, projPoints
 
-def liveCalibrationPipe(webcamIndex = 0, repErrThreshold = 1.0, waitTime = 30):
-    '''
-    This method lets us calibrate one of the computer's webcams live by taking
-    pictures continuously until:
-        1. enough pictures are obtained and a low enough reprojection threshold
-           has been reached
-        2. the user specifies to exit willing to keep quantities lower than
-           what specified in point 1
-        3. the user specifies to exit without calibrating
-        4. 30 seconds have passed
-    '''
-    i=0
-    imgs = []
-    while(i<waitTime):
-        i+=1
-        img = None
-        t = Timer(1, _shoot, args=(img, ))
-        t.start()
-        imgs.append(img)
-        
-        
-
 def _shootFromActiveWebcam(cap):
     '''
     This function shoots a picture from a given active webcam caption and
@@ -252,7 +230,10 @@ def _shootContinuouslyFromActiveWebcamAndAddToList(cap, picsList, tmInt,
         print("ST: initialized shooting thread and preparing to shoot pic {}".\
               format(i))
     while(status.empty() or (not status.get(False).startswith("stop"))):
-        picsList.append(_shootFromActiveWebcam(cap))
+        pic = _shootFromActiveWebcam(cap)
+        picsList.append(pic)
+        cv2.imshow('pic',pic)
+        cv2.waitKey(1)
         
         if verbose:
             print("ST: shot pic {} and appended to list".format(i))
@@ -262,7 +243,9 @@ def _shootContinuouslyFromActiveWebcamAndAddToList(cap, picsList, tmInt,
         
         if verbose:
             print("ST: woke up and starting to shoot pic {}".format(i))
-
+    
+    cv2.destroyAllWindows()
+    
 def _detectCheckerAndCalibrate(imgList, imgpoints, objpoints, checkerSize,
                                startIndex = 0):
     '''
@@ -291,18 +274,26 @@ def _detectCheckerAndCalibrate(imgList, imgpoints, objpoints, checkerSize,
     * updated list of 3d points corresponding to checkerboard corners
     '''
     #detect pattern in desired images
-    _, imgpoints2, objpoints2, foundPattern =\
+    _, objpoints2, imgpoints2, foundPattern =\
                 detectAndSaveCheckerboardInList(imgList[startIndex:],
                                                 checkerSize)
+    #print(objpoints2)
+
     #append points in 2d and 3d to corresponding lists
-    imgpoints = imgpoints + imgpoints2
-    objpoints = objpoints + objpoints2
+    imgpoints.extend(imgpoints2)
+    objpoints.extend(objpoints2)
+    #print(objpoints)
+    ret = None
+    mtx = None
+    dist = None
+    rvecs = None
+    tvecs = None
     
     #start calibration
-
-    ret, mtx, dist, rvecs, tvecs = calibrateCamera(objpoints, imgpoints,
-                                                   imgList[0].shape[0:2],
-                                                   True)
+    if(len(objpoints)>=8):
+        ret, mtx, dist, rvecs, tvecs = calibrateCamera(objpoints, imgpoints,
+                                                       imgList[0].shape[0:2],
+                                                       True)
     
     return ret, mtx, dist, rvecs, tvecs, imgpoints, objpoints
 
@@ -358,11 +349,11 @@ def _calibrateContinuously(imgList, checkerSize, tmInt, repErrThresh, status,
     while(status.empty() or (not status.get(False).startswith("stop"))):
         imgListSize = len(imgList)
         #need at least 8 pictures to start calibrating
-        if(len(objpoints)>8):
+        if(imgListSize>=8):
             
             if verbose:
                 print("CT: image with check in list: {}; started calibration".\
-                      format(len(objpoints)))
+                      format(imgListSize))
                 
             ret, K, dist, rvecs, tvecs, imgpoints, objpoints =\
                         _detectCheckerAndCalibrate(imgList, imgpoints,
@@ -370,18 +361,20 @@ def _calibrateContinuously(imgList, checkerSize, tmInt, repErrThresh, status,
                                                    previousMark)
                         
             if verbose:
-                print("CT: image in list: {}; finished calibration".\
+                print("CT: images in list: {}; finished calibration".\
                       format(imgListSize) + ". Checkerboard(s) detected: "+\
-                      len(objpoints))
-                
-            previousMark = imgListSize
-            errStats.append(np.array([ret, 0])) #TODO add time
-            if(ret>repErrThresh):
-                threshImproved = True
-                break
+                      str(len(objpoints)) + ". Error rate:" + str(ret))
+            
+            if ret!= None:
+                previousMark = imgListSize
+                errStats.append(np.array([ret, 0])) #TODO add time
+                if(ret<repErrThresh):
+                    threshImproved = True
+                    break
         else:
             if verbose:
-                print("CT: not enough pics to start calibrating")
+                print("CT: not enough pics to start calibrating ({})".\
+                      format(imgListSize))
         time.sleep(tmInt)
     
     retList.extend([K, dist, rvecs, tvecs, errStats, imgpoints, objpoints])
@@ -446,23 +439,34 @@ def calibrateLive(checkerSize, webcamIndex = 0, tmInt = .25, maxTime = 30,
     thread_shoot.start()
     thread_calibrate.start()
     
-    
-    t_end = time.time() + maxTime
+    t_start = time.time()
+    t_end = t_start + maxTime
     
     
     while time.time() < t_end:
         if not (thread_calibrate.is_alive() and thread_shoot.is_alive()):
+            t_end = time.time()
             break
     
     status_shoot.put("stop")
     status_calibrate.put("stop")
+
+    thread_shoot.join()
+    thread_calibrate.join()
     cap.release()
     
     if verbose:
-        print("MAIN: all threads ended and method ready to return")
+        print("MAIN: all threads ended and method ready for return. Total "+
+              "time elapsed: {}".format(t_end - t_start))
     
-    return (*retList_calib,)
+    K, dist, rvecs, tvecs, errStats, imgpoints, objpoints =\
+        tuple(retList_calib)
+    
+    return K, dist, rvecs, tvecs, errStats, imgpoints, objpoints, picsList
     
 
-K, dist, rvecs, tvecs, errStats, imgpoints, objpoints = calibrateLive((7,5), maxTime = 5, verbose = True)
+
+#K, dist, rvecs, tvecs, errStats, imgpoints, objpoints, picsList = calibrateLive((7,5), maxTime = 15, verbose = True)
+
+
     
