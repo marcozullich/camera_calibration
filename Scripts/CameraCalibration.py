@@ -157,21 +157,21 @@ def calibrateCamera(objpoints, imgpoints, imgSize, considerRadialDistortion):
     * tvecs -> translation vector (extrinsics) - one for each calibration image
     '''
     distCoeffs = None
+    flags= cv2.CALIB_ZERO_TANGENT_DIST
     
     if not considerRadialDistortion:
         
-        flags = cv2.CALIB_FIX_K1 + \
+        flags += cv2.CALIB_FIX_K1 + \
                  cv2.CALIB_FIX_K2 + cv2.CALIB_FIX_K3
-        ret, mtx, dist, rvecs, tvecs = \
-        cv2.calibrateCamera(objpoints, imgpoints, imgSize, None,
-                            distCoeffs = distCoeffs, flags = flags)
-        return ret, mtx, dist, rvecs, tvecs
-    
+        
     ret, mtx, dist, rvecs, tvecs = \
         cv2.calibrateCamera(objpoints, imgpoints, imgSize, None,
-                            distCoeffs = distCoeffs)
+                            distCoeffs = distCoeffs, flags = flags)
         
     return ret, mtx, dist, rvecs, tvecs
+    
+
+
 
 def computeReprojectionError(imgpoints, objpoints, rvecs, tvecs, K, dist):
     '''
