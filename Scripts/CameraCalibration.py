@@ -400,7 +400,25 @@ def _calibrateContinuously(imgList, checkerSize, tmInt, repErrThresh, status,
 def calibrateLive(checkerSize, webcamIndex = 0, tmInt = .25, maxTime = 30,
                   repErrThresh = 1.0, verbose = False):
     '''
-    
+    Calibrate a webcame of user's choice. The camera will shoot picture at a
+    rate given by the users (tmInt) and will be calibrate as soon as enough
+    picture with a checkerboard are detected by the algorithm. The algorithm
+    will stop either
+        a. when the total reprojection error as defined within the opencv lib
+           will improve a given threshold
+         or
+        b. maxTime seconds will be passed
+    ---
+    * checkerSize -> tuple containing the 2d dimension of the checkerboard
+      (horizontal intersections, vertical intersections)
+    * webcamIndex -> index of the webcam to be calibrated
+    * tmInt -> time interval (in seconds) between a shot and the following.
+      Also, the rate at which calibration will be performed is tmInt*4
+    * maxTime -> maximum number of seconds the algorithm will continuously
+      perform the calibration
+    * repErrThresh -> maximum reprojection error (as defined in the cv2 lib)
+      allowed for the algorithm to stop
+    * verbose -> verbosity of the method (use for testing sake)
     '''
     #this will store pics from shooting thread
     picsList = []
