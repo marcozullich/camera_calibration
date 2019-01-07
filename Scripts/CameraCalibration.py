@@ -466,7 +466,7 @@ def calibrateLive(checkerSize, webcamIndex = 0, tmInt = .25, maxTime = 30,
     
 
 
-#K, dist, rvecs, tvecs, errStats, imgpoints, objpoints, picsList = calibrateLive((7,5), maxTime = 15, verbose = True)
+#K, dist, rvecs, tvecs, errStats, imgpoints, objpoints, picsList = calibrateLive((7,5), maxTime = 30, verbose = True)
 
 
     
