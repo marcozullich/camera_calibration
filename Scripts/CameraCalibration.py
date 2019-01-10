@@ -35,7 +35,10 @@ def importImagesFolder(path, retList = None):
     
     #append each image in folder to list
     for img in myImagesDirList:
-        retList.append(cv2.imread(path + '/' + img))
+        #convert to RGB for correct matplolit representation
+        img_BGR = cv2.imread(path + '/' + img)
+        img_RGB = cv2.cvtColor(img_BGR, cv2.COLOR_BGR2RGB)
+        retList.append(img_RGB)
         
     return retList
 
