@@ -135,7 +135,7 @@ def getCheckerboardSize(img, maxSizes = (20,20)):
     
     return checkerboardDetectedIn
 
-def calibrateCamera(objpoints, imgpoints, imgSize, considerRadialDistortion):
+def calibrateCamera(objpoints, imgpoints, imgSize, considerRadialDistortion, fisheye=False):
     '''
     wrapper over cv2.calibrateCamera to render it more comprehensible wrt the
     subjects which were studied during lectures; in particular, it simplifies
@@ -160,16 +160,20 @@ def calibrateCamera(objpoints, imgpoints, imgSize, considerRadialDistortion):
     * tvecs -> translation vector (extrinsics) - one for each calibration image
     '''
     distCoeffs = None
-    flags= cv2.CALIB_ZERO_TANGENT_DIST
-    
+    flags= cv2.CALIB_ZERO_TANGENT_DIST 
+    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.0001)
     if not considerRadialDistortion:
         
         flags += cv2.CALIB_FIX_K1 + \
                  cv2.CALIB_FIX_K2 + cv2.CALIB_FIX_K3
         
+    if fisheye:
+        flags += cv2.CALIB_RATIONAL_MODEL
+        #flags += cv2.CALIB_FIX_K3
+        
     ret, mtx, dist, rvecs, tvecs = \
         cv2.calibrateCamera(objpoints, imgpoints, imgSize, None,
-                            distCoeffs = distCoeffs, flags = flags)
+                            distCoeffs = distCoeffs, flags = flags,criteria=criteria)
         
     return ret, mtx, dist, rvecs, tvecs
     
