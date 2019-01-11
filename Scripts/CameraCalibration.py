@@ -70,7 +70,7 @@ def detectAndSaveCheckerboardInList(imgList, checkerboardSize, savePath = None):
     
     criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
     
-    # prepare object points, like (0,0,0), (1,0,0), (2,0,0) ....,(6,5,0)
+    # prepare object points in 3D
     objp = np.zeros((checkerboardSize[0]*checkerboardSize[1],3), np.float32)
     objp[:,:2] = np.mgrid[0:checkerboardSize[0],0:checkerboardSize[1]].T.reshape(-1,2)
     
@@ -79,26 +79,33 @@ def detectAndSaveCheckerboardInList(imgList, checkerboardSize, savePath = None):
     
     imgList_gray = [cv2.cvtColor(x, cv2.COLOR_BGR2GRAY) for x in imgList]
     
-    checkerBoardImages = []
-    checkerboardFound = []
+	#Prepare lists where return values will be stored into
+    checkerBoardImages = [] #list of images with checkerboard drawn
+    checkerboardFound = [] #list of bools, determining if pattern found in images
     
+	#loop through all images
     for i in range(len(imgList)):
         ret, corners = cv2.findChessboardCorners(imgList_gray[i],
                                                  checkerboardSize, None)
         checkerboardFound.append(ret)
         
-        if ret:
-            objpoints.append(objp)
+        if ret: #if checkerboard found within current image
+            objpoints.append(objp) #append 3D points
             
+			#refine intersections location within current image
             corners2 = cv2.cornerSubPix(imgList_gray[i] ,corners,
                                         checkerboardSize,(-1,-1),
                                         criteria)
+			#adds refined 2D coordinates to imgpoints list
             imgpoints.append(corners2)
             
+			#copy image (not to overwrite it)
             img = np.copy(imgList[i])
             
+			#draw chessboard corners on copied image
             cv2.drawChessboardCorners(img, checkerboardSize, corners2, ret)
             
+			#if a savePath was specified, save image
             if savePath != None:
                 cv2.imwrite(savePath + '/checker_' + str(i) + '.jpg', img)
             
