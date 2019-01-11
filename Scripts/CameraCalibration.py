@@ -93,6 +93,7 @@ def detectAndSaveCheckerboardInList(imgList, checkerboardSize, savePath = None):
             objpoints.append(objp) #append 3D points
             
 			#refine intersections location within current image
+			#TODO change window size
             corners2 = cv2.cornerSubPix(imgList_gray[i] ,corners,
                                         checkerboardSize,(-1,-1),
                                         criteria)
