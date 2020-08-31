@@ -1,15 +1,15 @@
-# CVPR_Exam
-Computer Vision Exam Project, A.Y. 2018/'19
+Questa repository contiene una semplice applicazione interattiva in cui dimostra come, effettuando una corretta calibrazione della fotocamera in uso (tramite l'utilizzo di una "schacchiera" con celle quadrate bianco/nere) è possibile ricostruire la terza dimesione (profondità) persa a causa della proiezione dell'immagine dal mondo reale tridimensionale al piano d'immagine bidimensionale.
 
-Domagoj Korais
+L'applicazione permette di disegnare dei solidi sovraimposti sulla schacchiera, dando la possibilità di scegliere alcune caratteristiche del solido stesso (base, altezza, raggio...) L'unità di misura è la base di una cella.
 
-Marco Zullich
+## Prerequisiti
 
-# Exam project no. 1 → «CALIBRATING CAMERA AND SUPERIMPOSING AN OBJECT ON THE CALIBRATION PATTERN»
+streamlit, numpy, matplotlib
 
-Code is in /Scripts folder:
-* two Python libraries to calibrate camera and project solids within the image
-* examples of applications are contained within the IPython notebooks
+## Esecuzione del programma
 
-Repoprt is in /Report folder.
+streamlit run app.py
 
+### Notebook interattivo
+
+Nota: nella cartella Scripts sono presenti dei notebook in inglese che dettagliano la fase della calibazione in sé.
