@@ -60,7 +60,6 @@ def draw_solid(solidType, solidCharacterization, origin,
                         [o_x+side, o_y, -side]])
         p_2d, _ = cv2.projectPoints(p, rvec, tvec, K, dist)
         p_2d = np.int32(p_2d).reshape(-1,2)
-        print(p_2d)
         
         #create two layers for transparent overlay
         imgc = np.copy(img)
