@@ -10,6 +10,8 @@ add comments to functions
 import numpy as np
 import cv2
 import numbers
+import CameraCalibration as cc
+import matplotlib.pyplot as plt
 
 def draw_solid(solidType, solidCharacterization, origin,
                imgToDrawInto, checkerCorners, K, rvec, tvec, dist,
@@ -142,21 +144,35 @@ def draw_solid(solidType, solidCharacterization, origin,
     return img
         
 
+def imshow(image):
+    cv2.imshow("image", image)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
 
-#from CameraCalibration import *
-#
-#imgs = importImagesFolder('../images_calib_custom/')
-#checkerboardSize = (7,5)
-#imgs_check, objpoints, imgpoints, flags = detectAndSaveCheckerboardInList(imgs, checkerboardSize)
-#    
-#ret, mtx, dist, rvecs, tvecs = calibrateCamera(
-#    objpoints, imgpoints, imgs_check[0].shape[0:2], True)
-#
-#repError_dist, projPoints_dist = computeReprojectionError(imgpoints, objpoints, rvecs,
-#                        tvecs, mtx, dist)
-#
-#img_ind = 4
-#img = draw_solid('Cylinder', (1.5,1), (3,3), imgs[img_ind], imgpoints[img_ind], mtx, rvecs[img_ind], tvecs[img_ind], dist)
-#plt.figure(figsize=(50, 20))
-#imgplot = plt.imshow(img)
-#
+if __name__ == "__main__":
+    imgs = cc.importImagesFolder('../images_calib_custom/')
+    checkerboardSize = (7,5)
+    imgs_check, objpoints, imgpoints, flags = cc.detectAndSaveCheckerboardInList(imgs, checkerboardSize)
+    
+    ret, mtx, dist, rvecs, tvecs = cc.calibrateCamera(objpoints, imgpoints, imgs_check[0].shape[0:2], True)
+
+    repError_dist, projPoints_dist = cc.computeReprojectionError(imgpoints, objpoints, rvecs,
+                        tvecs, mtx, dist)
+
+    img_ind = 4
+    
+    img = draw_solid('Cube', 2, (2,3), imgs[img_ind], imgpoints[img_ind], mtx, rvecs[img_ind], tvecs[img_ind], dist)
+    imshow(img)
+
+    img_ind = 2
+    img = draw_solid('Pyramid', (2,2,1.5), (2,2), imgs[img_ind], imgpoints[img_ind], mtx, rvecs[img_ind], tvecs[img_ind], dist)
+    imshow(img)
+
+    img_ind = 10
+    img = draw_solid('Cylinder', (2,2), (3,2), imgs[img_ind], imgpoints[img_ind], mtx, rvecs[img_ind], tvecs[img_ind], dist)
+    imshow(img)
+    
+    
+    # plt.figure(figsize=(50, 20))
+    # imgplot = plt.imshow(img)
+
